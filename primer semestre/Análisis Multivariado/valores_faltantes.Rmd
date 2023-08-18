@@ -1,0 +1,87 @@
+---
+title: "Valores Faltantes"
+author: "Emanuel Fitta"
+date: "2023-08-18"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Ejemplo imputación múltiple con MICE
+
+```{r}
+library(mice)
+head(nhanes)
+```
+Estos son los primeros 6 renglones de un total de 25 . Datos de la librería mice.
+age Age group (1=20-39, 2=40-59, 3=60+)
+bmi Body mass index (kg/m**2)
+hyp Hypertensive (1=no,2=yes)
+chl Total serum cholesterol (mg/dL)
+
+```{r}
+md.pattern(nhanes)
+```
+13 observaciones completas
+3 que les falta medición de chl
+1 que le falta bmi ,; 1 que le faltan hyp y bmi
+7 que les faltan hyp, bmi y chl
+(7 × 3) + (1 × 2) + (3 × 1) + (1 × 1) = 27
+
+Este es el comando para correr la imputación múltiple.
+```{r}
+imp <- mice(nhanes, seed = 23109, print = FALSE)
+print(imp)
+```
+Habrá 5 juegos de datos
+Por ejemplo la variable
+bmi será modelada a través de age+hyp+chl
+
+Hay 9 valores faltantes de bmi
+Aquí están los 5 juegos de 9 imputaciones
+
+```{r}
+imp$imp$bmi
+```
+Hay 8 valores faltantes de hyp
+Aquí están los 5 juegos de 8 imputaciones
+
+```{r}
+imp$imp$hyp
+```
+
+Este es un juego de datos completos. (el primero)
+
+```{r}
+complete(imp)
+```
+
+Visualización de datos faltantes por variable
+
+```{r}
+library(lattice)
+stripplot(imp, pch = 20, cex = 1.2)
+```
+
+```{r}
+xyplot(imp, bmi ~ chl | .imp, pch = 20, cex = 1.4)
+```
+
+Si la idea es correr un análisis de regresión para explicar los niveles de colesterol en función de la edad y
+el índice de masa corporal, este paquete mice permite hacerlo así.
+
+```{r}
+fit <- with(imp, lm(chl ~ age + bmi))
+print(pool(fit))
+```
+Este es el estimador combinado
+$\hat{\gamma} = \Sigma_{i = 1} ^ {D} \gamma_i /D$
+
+Esta es la varianza del estimador combinado
+$T_D = \hat{U}_D + (1 + 1/D)B_D$
+con
+$$\hat{U}_D = \Sigma_{i = 1} ^ {D} U_i/D \quad \text{(Promedio de varianzas)}$$
+y
+
+$$B_D = \Sigma_{i = 1}^{D}(\hat{\gamma}_i - \hat{\gamma})^2/(D-1) \quad \text{(Varianza entre imputaciones)}$$
+
